@@ -1,5 +1,6 @@
 import pygame
 import time
+import math
 
 WIDTH = 1280
 HIGHT = 720
@@ -64,17 +65,40 @@ class Weapon():
         self.cooldown = cooldown
         self.timer = 0 # 0 mean ready to attack
         self.weapon_body = pygame.Rect(x, y, 10, 50)
+        # sets the radius from the player to 30
+        self.radius = 30
+        # capital normaly mena class
+        # the staring postion every time you open the game
+        self.original = pygame.Surface((10, 50), pygame.SRCALPHA ) # adds a 4the valuse so that 0 = transparent
+        # fills that specific space
+        self.original.fill((0, 0, 0))
+
+        self.image = self.original
+        # need both image and rect bc Surface dosent have cordinest
+        self.rect = self.image.get_rect()
+    def follow(self, player):
+        
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+        center_x, center_y = player.hitbox.center
+                            # goes y and then x very specific
+        angle = math.atan2(mouse_y - center_y, mouse_x - center_x)
+        # get the center of the players hitbox the take that 
+        x = center_x + math.cos(angle) * self.radius
+        y = center_y + math.sin(angle) * self.radius
+                                                            # convers angle from radians to an angle
+        self.image = pygame.transform.rotate(self.original, -math.degrees(angle) ) # negitive becasue pygame y is fliped
+        self.rect = self.image.get_rect(center= (x, y))
         
     def update(self):
         if self.timer > 0:
             self.timer -= 1
 
-    def attack(self, player):
+    def attack(self):
         if self.timer > 0: # if the timer is less than 0 do nothing
             return
         self.timer = self.cooldown
     
-weapon1 = Weapon(10, 30, 10, (player.hitbox.x + 40), (player.hitbox.y - 10))     
+weapon1 = Weapon(10, 30, 10, (player.hitbox.x) + 40, (player.hitbox.y - 10))     
        
 def move(player, distance_x, distance_y):
     """
@@ -94,21 +118,18 @@ def move(player, distance_x, distance_y):
             if distance_x > 0:
                 # sets the players right edge to the walls left edge so you cant go through it
                 player.hitbox.right = wall.left
-                weapon1.weapon_body.x = player.hitbox.x + 40
+            
             if distance_x < 0:
                 player.hitbox.left = wall.right
-                weapon1.weapon_body.x = player.hitbox.x + 40
     
     player.hitbox.y += distance_y
     for wall in walls:
         if player.hitbox.colliderect(wall):
             if distance_y > 0:
                 player.hitbox.bottom = wall.top
-                weapon1.weapon_body.y = player.hitbox.y - 10
 
             if distance_y < 0:
                 player.hitbox.top = wall.bottom
-                weapon1.weapon_body.y = player.hitbox.y - 10
 
 clock = pygame.time.Clock()
 
@@ -133,29 +154,26 @@ while running:
     distance_y = 0
     if keys[pygame.K_a]:
         distance_x = -player.speed
-        weapon1.weapon_body.x -= player.speed  
     if keys[pygame.K_d]:
         distance_x = player.speed
-        weapon1.weapon_body.x += player.speed  
 
     if keys[pygame.K_w]:
         distance_y = -player.speed
-        weapon1.weapon_body.y -= player.speed  
 
     if keys[pygame.K_s]:
         distance_y = player.speed
-        weapon1.weapon_body.y += player.speed  
 
     # gets called every frame to check if youve moved and then update position
     move(player, distance_x, distance_y)
+    weapon1.follow(player)
     screen.fill((211, 211, 211))
     for wall in walls:
          # where to dispaly, what color, where and how big
         # rect means draw a retangle
         pygame.draw.rect(screen, (255, 255, 255), wall) 
+    # uses pixels and cant be rotated
     pygame.draw.rect(screen, (240, 200, 60), player.hitbox)
-    pygame.draw.rect(screen, (0, 0, 0), weapon1.weapon_body)
-    
+    screen.blit(weapon1.image, weapon1.rect)
     
     pygame.display.flip()
     
