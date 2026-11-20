@@ -14,6 +14,8 @@ print(COL, ROW)
 
 walls = []
 
+bullets = []
+
 level = [
     "################################",
     "#..............................#",
@@ -47,6 +49,16 @@ for row_number, row in enumerate(level):
             wall = pygame.Rect(col_number * TILE, row_number * TILE, TILE, TILE) # takes cordinets and give them form
             walls.append(wall)
 
+class Enemy():
+    def __init__(self, x, y):
+        self.hitbox = pygame.Rect(x, y, 24, 24)
+        self.speed = 2
+        self.health = 100
+
+class EnemyWeapon():
+    def __init__(self, x, y, cooldown):
+        self.body = pygame.Rect(x, y, 20, 20)
+
 # makes a variable of the key you press kinda
 
 class Player_model():
@@ -59,17 +71,19 @@ class Player_model():
 # creats a player and sets starign postion
 player = Player_model(80, 80)
 class Weapon():
-    def __init__(self, damage, reach, cooldown, x, y):
-        self.damage = damage
+    def __init__(self, reach, cooldown, x, y):
+        self.ammo = 10
+        self.max_ammo = 10
         self.reach = reach
         self.cooldown = cooldown
         self.timer = 0 # 0 mean ready to attack
-        self.weapon_body = pygame.Rect(x, y, 10, 50)
+        self.weapon_body = pygame.Rect(x, y, 20, 20)
         # sets the radius from the player to 30
         self.radius = 30
+        self.angle = 0
         # capital normaly mena class
         # the staring postion every time you open the game
-        self.original = pygame.Surface((10, 50), pygame.SRCALPHA ) # adds a 4the valuse so that 0 = transparent
+        self.original = pygame.Surface((20, 20), pygame.SRCALPHA ) # adds a 4the valuse so that 0 = transparent
         # fills that specific space
         self.original.fill((0, 0, 0))
 
@@ -82,23 +96,52 @@ class Weapon():
         center_x, center_y = player.hitbox.center
                             # goes y and then x very specific
         angle = math.atan2(mouse_y - center_y, mouse_x - center_x)
+
+        self.angle = angle
         # get the center of the players hitbox the take that 
         x = center_x + math.cos(angle) * self.radius
         y = center_y + math.sin(angle) * self.radius
                                                             # convers angle from radians to an angle
         self.image = pygame.transform.rotate(self.original, -math.degrees(angle) ) # negitive becasue pygame y is fliped
         self.rect = self.image.get_rect(center= (x, y))
+     
+    def update(self, dt):
+        # cannot go bellow 0 its weird
+        self.timer = max(0, self.timer - dt)
         
-    def update(self):
-        if self.timer > 0:
-            self.timer -= 1
+
+        
 
     def attack(self):
-        if self.timer > 0: # if the timer is less than 0 do nothing
+        if self.timer > 0: # if the timer is greater than 0 do nothing
             return
+        
         self.timer = self.cooldown
+
+
+class Bullet():
+    def __init__(self, x, y, angle, speed=10, damage=10) :
+        
+        self.rect = pygame.Rect(0, 0, 20, 20)
+        self.rect.center = (x, y)
+        # thes lines take the angle tells us what way we are facing and speed tells us how far to move
+        self.bx = math.cos(angle) * speed
+        self.by = math.sin(angle) * speed
+        self.damage = damage
     
-weapon1 = Weapon(10, 30, 10, (player.hitbox.x) + 40, (player.hitbox.y - 10))     
+    def update(self):
+    
+        self.rect.x += self.bx
+        self.rect.y += self.by
+    
+
+   
+
+
+
+
+
+weapon1 = Weapon( 30, 0.5, (player.hitbox.x) + 40, (player.hitbox.y - 10))     
        
 def move(player, distance_x, distance_y):
     """
@@ -138,15 +181,24 @@ clicked = False
 running = True
 
 while running:
-
+    dt = clock.tick(60) / 1000 # seconds secne last frame
+    
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
             
         
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                clicked = True
-    
+            clicked = True
+            if weapon1.timer == 0 and weapon1.ammo > 0:
+                bullets.append(Bullet(weapon1.rect.centerx, weapon1.rect.centery, weapon1.angle))
+                weapon1.attack()
+                
+
+
+        if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            clicked = False
+
     # this is the player movent and 
     keys = pygame.key.get_pressed()
     # jsut tell me how much my player is moving
@@ -166,6 +218,7 @@ while running:
     # gets called every frame to check if youve moved and then update position
     move(player, distance_x, distance_y)
     weapon1.follow(player)
+    weapon1.update(dt)
     screen.fill((211, 211, 211))
     for wall in walls:
          # where to dispaly, what color, where and how big
@@ -174,10 +227,18 @@ while running:
     # uses pixels and cant be rotated
     pygame.draw.rect(screen, (240, 200, 60), player.hitbox)
     screen.blit(weapon1.image, weapon1.rect)
+    # updates bullets postion and the if it hits a wall it gets removed from list
+    for bullet in bullets:
+        bullet.update()
+        for wall in walls:
+            if bullet.rect.colliderect(wall):
+                bullets.remove(bullet)
+                break
+
+        pygame.draw.rect(screen, (0, 0, 0), bullet.rect)
     
     pygame.display.flip()
     
-    clock.tick(60)
 
     
 
